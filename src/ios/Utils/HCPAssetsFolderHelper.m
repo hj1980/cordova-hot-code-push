@@ -26,7 +26,7 @@
     dispatch_once(&onceToken, ^{
         sharedInstance = [[HCPAssetsFolderHelper alloc] init];
     });
-    
+
     return sharedInstance;
 }
 
@@ -35,9 +35,9 @@
     if (helper.isWorking) {
         return;
     }
-    
+
     helper.isWorking = YES;
-    
+
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         [helper __installWwwFolderToExternalStorageFolder:externalFolderURL];
     });
@@ -49,18 +49,34 @@
     NSError *error = nil;
     NSFileManager *fileManager = [NSFileManager defaultManager];
     BOOL isWWwFolderExists = [fileManager fileExistsAtPath:externalFolderURL.path];
-    
+
     // remove previous version of the www folder
     if (isWWwFolderExists) {
         [fileManager removeItemAtURL:[externalFolderURL URLByDeletingLastPathComponent] error:&error];
     }
-    
+
     // create new www folder
     if (![fileManager createDirectoryAtURL:[externalFolderURL URLByDeletingLastPathComponent] withIntermediateDirectories:YES attributes:nil error:&error]) {
         [self dispatchErrorEvent:error];
         return;
     }
-    
+
+    id beforeFlag = nil;
+    [[externalFolderURL URLByDeletingLastPathComponent] getResourceValue: &beforeFlag
+                                 forKey: NSURLIsExcludedFromBackupKey error: &error];
+    NSLog (@"NSURLIsExcludedFromBackupKey beforeFlag: %@", beforeFlag);
+    if (error) NSLog(@"Error happened. %@", error);
+
+    [[externalFolderURL URLByDeletingLastPathComponent] setResourceValue:[NSNumber numberWithBool: YES]
+                                 forKey: NSURLIsExcludedFromBackupKey error: &error];
+    if (error) NSLog(@"Error happened. %@", error);
+
+    id afterFlag = nil;
+    [[externalFolderURL URLByDeletingLastPathComponent] getResourceValue: &afterFlag
+                                 forKey: NSURLIsExcludedFromBackupKey error: &error];
+    NSLog (@"NSURLIsExcludedFromBackupKey afterFlag: %@", afterFlag);
+    if (error) NSLog(@"Error happened. %@", error);
+
     // copy www folder from bundle to cache folder
     NSURL *localWww = [NSURL fileURLWithPath:[NSBundle pathToWwwFolder] isDirectory:YES];
     [fileManager copyItemAtURL:localWww toURL:externalFolderURL error:&error];
@@ -69,7 +85,7 @@
     } else {
         [self dispatchSuccessEvent];
     }
-    
+
     self.isWorking = NO;
 }
 
@@ -85,7 +101,7 @@
                                                  applicationConfig:nil
                                                             taskId:nil
                                                              error:pluginError];
-    
+
     [[NSNotificationCenter defaultCenter] postNotification:notification];
 }
 
